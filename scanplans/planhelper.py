@@ -160,3 +160,62 @@ def xpdacq_count(detectors: list, num: int = 1, delay: float = None, *,
     the plan will raise a ``ValueError`` during iteration.
     """
     yield from bp.count(detectors, num, delay, per_shot=per_shot, md=md)
+
+
+def xpdacq_ramp_count(detectors: list, motor: typing.Any, value: typing.Any, take_pre_data=True, timeout=None,
+                      period=None, md=None) -> typing.Generator:
+    """Take data while ramping one or more motors.
+
+    Parameters
+    ----------
+    detectors : list
+        A list of 'readable' objects.
+
+    motor :
+        A positioner to ramp up.
+
+    value:
+        A value to ramp up to.
+
+    timeout : float, optional
+        If not None, the maximum time the ramp can run.
+
+        In seconds
+
+    take_pre_data: Bool, optional
+        If True, add a pre data at beginning
+
+    period : float, optional
+        If not None, take data no faster than this.  If None, take
+        data as fast as possible
+
+        If running the inner plan takes longer than `period` than take
+        data with no dead time.
+
+        In seconds.
+
+    md : dict
+        The metadata of this plan.
+    """
+    for detector in detectors:
+        yield from bps.stage(detector)
+
+    def go_plan():
+        status, = yield from bps.mv(motor, value)
+        return status
+
+    def inner_plan():
+        yield from xpdacq_trigger_and_read(detectors)
+
+    yield from bp.ramp_plan(
+        go_plan(),
+        motor,
+        inner_plan,
+        take_pre_data=take_pre_data,
+        timeout=timeout,
+        period=period,
+        md=md
+    )
+
+    for detector in detectors:
+        yield from bps.unstage(detector)
