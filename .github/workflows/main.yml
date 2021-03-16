@@ -12,12 +12,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-
-      - name: setup-conda
-        uses: s-weigand/setup-conda@v1.0.3
+      - uses: conda-incubator/setup-miniconda@v2
         with:
-          activate-conda: true
-          update-conda: false
+          auto-activate-base: true
 
       - name: add conda channels
         run: |
