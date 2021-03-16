@@ -15,6 +15,8 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v2
         with:
           auto-activate-base: true
+          activate-environment: "test"
+          
 
       - name: add conda channels
         run: |
@@ -27,19 +29,13 @@ jobs:
           requirements/test.txt --file requirements/docs.txt
 
       - name: install the package
-        run: |
-          source activate test
-          python -m pip install .
+        run: python -m pip install .
 
       - name: check code style
-        run: |
-          source activate test
-          flake8
+        run: flake8
 
       - name: build documents
-        run: |
-          source activate test
-          make -C docs html
+        run: make -C docs html
 
       - name: deploy to github pages if released
         uses: JamesIves/github-pages-deploy-action@3.5.7
