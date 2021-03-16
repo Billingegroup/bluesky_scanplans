@@ -25,7 +25,7 @@ jobs:
 
       - name: install requirements
         run: >-
-          conda create -n test --file requirements/build.txt --file requirements/run.txt --file
+          conda install -n test --file requirements/build.txt --file requirements/run.txt --file
           requirements/test.txt --file requirements/docs.txt
 
       - name: install the package
