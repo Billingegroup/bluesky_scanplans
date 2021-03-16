@@ -164,7 +164,8 @@ def xpdacq_count(detectors: list, num: int = 1, delay: float = None, *,
 
 def xpdacq_ramp_count(detectors: list, motor: typing.Any, value: typing.Any, take_pre_data=True, timeout=None,
                       period=None, md=None) -> typing.Generator:
-    """Take data while ramping one or more motors.
+    """
+    Take data while ramping one or more motors.
 
     Parameters
     ----------
@@ -219,3 +220,178 @@ def xpdacq_ramp_count(detectors: list, motor: typing.Any, value: typing.Any, tak
 
     for detector in detectors:
         yield from bps.unstage(detector)
+
+
+def xpdacq_list_grid_scan(detectors: list, *args,
+                          snake_axes: typing.Union[bool, typing.Iterable[bool], None] = None,
+                          per_step: typing.Callable = xpdacq_per_step,
+                          md: typing.Union[dict, None] = None) -> typing.Generator:
+    """
+    Scan over a mesh; each motor is on an independent trajectory.
+
+    Parameters
+    ----------
+    detectors: list
+        list of 'readable' objects
+    args: list
+        patterned like (``motor1, position_list1,``
+                        ``motor2, position_list2,``
+                        ``motor3, position_list3,``
+                        ``...,``
+                        ``motorN, position_listN``)
+
+        The first motor is the "slowest", the outer loop. ``position_list``'s
+        are lists of positions, all lists must have the same length. Motors
+        can be any 'settable' object (motor, temp controller, etc.).
+    snake_axes: boolean or iterable, optional
+        which axes should be snaked, either ``False`` (do not snake any axes),
+        ``True`` (snake all axes) or a list of axes to snake. "Snaking" an axis
+        is defined as following snake-like, winding trajectory instead of a
+        simple left-to-right trajectory.The elements of the list are motors
+        that are listed in `args`. The list must not contain the slowest
+        (first) motor, since it can't be snaked.
+    per_step: callable, optional
+        hook for customizing action of inner loop (messages per step).
+        See docstring of :func:`bluesky.plan_stubs.one_nd_step` (the default)
+        for details.
+    md: dict, optional
+        metadata
+    """
+    yield from bp.list_grid_scan(detectors, *args, snake_axes=snake_axes, per_step=per_step, md=md)
+
+
+def slow_dark_wrapper(per_step: typing.Callable, slow_motor: object) -> typing.Callable:
+    """
+    Decorate the per step function so that it will take a dark image if the slow motor changes its position.
+
+    Parameters
+    ----------
+    per_step :
+        The per step function, like ``f(detectors, step, pos_cache, take_reading)``.
+
+    slow_motor :
+        The slow motor in a grid scan.
+
+    Returns
+    -------
+    _per_step :
+        The decorated per_step function.
+    """
+
+    def _per_step(detectors: list, step: dict, pos_cache: dict,
+                  take_reading: typing.Callable = xpdacq_trigger_and_read):
+        # if the slow motor moves to another position in this step, take a dark
+        if pos_cache.get(slow_motor) != step.get(slow_motor):
+            yield from take_reading(detectors + list(step.keys()), name="dark")
+        yield from per_step(detectors, step, pos_cache, take_reading)
+
+    return _per_step
+
+
+def xpdacq_grid_scan_with_dark(detectors: list, *args,
+                               snake_axes: typing.Union[bool, typing.Iterable[bool], None] = None,
+                               per_step: typing.Callable = xpdacq_per_step,
+                               md: typing.Union[dict, None] = None) -> typing.Generator:
+    """
+    Scan over a mesh; each motor is on an independent trajectory. If there is a change in the position of the
+    slow motor, take a dark image.
+
+    Parameters
+    ----------
+    detectors: list
+        list of 'readable' objects
+    ``*args``
+        patterned like (``motor1, start1, stop1, num1,``
+                        ``motor2, start2, stop2, num2,``
+                        ``motor3, start3, stop3, num3,`` ...
+                        ``motorN, startN, stopN, numN``)
+
+        The first motor is the "slowest", the outer loop. For all motors
+        except the first motor, there is a "snake" argument: a boolean
+        indicating whether to following snake-like, winding trajectory or a
+        simple left-to-right trajectory.
+    snake_axes: boolean or iterable, optional
+        which axes should be snaked, either ``False`` (do not snake any axes),
+        ``True`` (snake all axes) or a list of axes to snake. "Snaking" an axis
+        is defined as following snake-like, winding trajectory instead of a
+        simple left-to-right trajectory. The elements of the list are motors
+        that are listed in `args`. The list must not contain the slowest
+        (first) motor, since it can't be snaked.
+    per_step: callable, optional
+        hook for customizing action of inner loop (messages per step).
+        See docstring of `xpdacq_per_step` (the default)
+        for details.
+    md: dict, optional
+        metadata
+    """
+    if args:
+        slow_motor = args[0]
+        per_step = slow_dark_wrapper(per_step, slow_motor)
+    yield from bp.grid_scan(detectors, *args, snake_axes=snake_axes, per_step=per_step, md=md)
+
+
+def xpdacq_list_grid_scan_with_dark(detectors: list, *args,
+                                    snake_axes: typing.Union[bool, typing.Iterable[bool], None] = None,
+                                    per_step: typing.Callable = xpdacq_per_step,
+                                    md: typing.Union[dict, None] = None):
+    """
+    Scan over a mesh; each motor is on an independent trajectory. If there is a change in the position of the
+    slow motor, take a dark image.
+
+    Parameters
+    ----------
+    detectors: list
+        list of 'readable' objects
+    args: list
+        patterned like (``motor1, position_list1,``
+                        ``motor2, position_list2,``
+                        ``motor3, position_list3,``
+                        ``...,``
+                        ``motorN, position_listN``)
+
+        The first motor is the "slowest", the outer loop. ``position_list``'s
+        are lists of positions, all lists must have the same length. Motors
+        can be any 'settable' object (motor, temp controller, etc.).
+    snake_axes: boolean or iterable, optional
+        which axes should be snaked, either ``False`` (do not snake any axes),
+        ``True`` (snake all axes) or a list of axes to snake. "Snaking" an axis
+        is defined as following snake-like, winding trajectory instead of a
+        simple left-to-right trajectory.The elements of the list are motors
+        that are listed in `args`. The list must not contain the slowest
+        (first) motor, since it can't be snaked.
+    per_step: callable, optional
+        hook for customizing action of inner loop (messages per step).
+        See docstring of :func:`bluesky.plan_stubs.one_nd_step` (the default)
+        for details.
+    md: dict, optional
+        metadata
+    """
+    if args:
+        slow_motor = args[0]
+        per_step = slow_dark_wrapper(per_step, slow_motor)
+    yield from bp.list_grid_scan(detectors, *args, snake_axes=snake_axes, per_step=per_step, md=md)
+
+
+def calc_velocity(start: float, end: float, exposure: float, num: int):
+    """Calculate the velocity of the motor.
+
+    Parameters
+    ----------
+    start :
+        The start position of a motor.
+
+    end :
+        The end position of a motor.
+
+    exposure :
+        The time per exposure.
+
+    num :
+        The number of exposure.
+
+    Returns
+    -------
+    velocity :
+        The velocity suggested for the motor.
+    """
+    return abs(end - start) / (exposure * num)
