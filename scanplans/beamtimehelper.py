@@ -1,9 +1,10 @@
 """A class to print sample information and generate bluesky plan to target samples."""
+import bluesky.preprocessors as bpp
+from bluesky.plan_stubs import mv, null
+from bluesky.simulators import summarize_plan
 from pprint import pprint
 from typing import Union, Tuple, Generator
 
-from bluesky.plan_stubs import mv, null
-from bluesky.simulators import summarize_plan
 from xpdacq.beamtime import Beamtime, ScanPlan
 from xpdacq.xpdacq_conf import xpd_configuration
 
@@ -154,3 +155,12 @@ class BeamtimeHelper:
             print(f"INFO: Move to y = {pos_y}")
             yield from mv(posy_controller, float(pos_y))
         yield from null()
+
+    def do(self, sample, plan):
+        """Generate a measurement plan for a sample. The steps are
+
+            aim the beam at the sample
+            conduct the plan with the sample metadata injected
+        """
+        yield from self.aim_at_sample(sample)
+        yield from bpp.inject_md_wrapper(plan, md=self.get_sample(sample))
