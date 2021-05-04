@@ -16,17 +16,9 @@ jobs:
         with:
           auto-activate-base: true
           activate-environment: "test"
-          
-
-      - name: add conda channels
-        run: |
-          conda config --append channels nsls2forge
-          conda config --append channels conda-forge
 
       - name: install requirements
-        run: >-
-          conda install -n test --file requirements/build.txt --file requirements/run.txt --file
-          requirements/test.txt --file requirements/docs.txt
+        run: conda install -n test -c nsls2forge -c conda-forge --file requirements.txt --file requirements-dev.txt
 
       - name: install the package
         run: python -m pip install .
