@@ -3,10 +3,9 @@ import bluesky.preprocessors as bpp
 from bluesky.plan_stubs import mv, null
 from bluesky.simulators import summarize_plan
 from pprint import pprint
-from typing import Union, Tuple, Generator
+from typing import Union, Tuple, Generator, Any
 
 from xpdacq.beamtime import Beamtime, ScanPlan
-from xpdacq.xpdacq_conf import xpd_configuration
 
 __all__ = [
     "BeamtimeHelper"
@@ -29,7 +28,7 @@ class BeamtimeHelper:
         The key for the position of samples. Default is the global variable POS_KEYS
     """
 
-    def __init__(self, bt: Beamtime, pos_key: Tuple[str, str] = POS_KEYS):
+    def __init__(self, bt: Beamtime, positioners: Tuple[Any, Any], pos_key: Tuple[str, str] = POS_KEYS):
         """
         Initiate the class instance.
 
@@ -41,6 +40,7 @@ class BeamtimeHelper:
             (Optional) The keys of the horizontal position and vertical position fields. Default POS_KEY
         """
         self._bt = bt
+        self._positioners = positioners
         self._pos_key = pos_key
 
     def get_sample(self, sample: Union[int, str]) -> dict:
@@ -136,8 +136,7 @@ class BeamtimeHelper:
         Aim at the sample "Ni" in bt.
         >>> RE(bthelper.aim_at_sample("Ni"))
         """
-        posx_controller = xpd_configuration["x_controller"]
-        posy_controller = xpd_configuration["y_controller"]
+        posx_controller, posy_controller = self._positioners
         sample_meta = self.get_sample(sample)
         name = sample_meta.get("sample_name")
         print(f"INFO: Target sample {name}")
@@ -164,3 +163,5 @@ class BeamtimeHelper:
         """
         yield from self.aim_at_sample(sample)
         yield from bpp.inject_md_wrapper(plan, md=self.get_sample(sample))
+        sts = yield from plan
+        return sts
