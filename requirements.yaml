@@ -1,0 +1,7 @@
+name: scanplans
+channels:
+  - nsls2forge
+  - defaults
+dependencies:
+  - xpdacq
+  - area-detector-handlers

@@ -1,0 +1,17 @@
+name: scanplans
+channels:
+  - nsls2forge
+  - defaults
+dependencies:
+  - xpdacq
+  - area-detector-handlers
+  - codecov
+  - coverage
+  - flake8
+  - pytest
+  - sphinx
+  - ipython
+  - matplotlib
+  - numpydoc
+  - sphinx-copybutton
+  - sphinx_rtd_theme

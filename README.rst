@@ -10,3 +10,10 @@ Bluesky plans from Billinge group
 
 * Free software: 3-clause BSD license
 * Documentation: https://Billingegroup.github.io/bluesky_scanplans.
+
+Installation
+------------
+
+Run the command in terminal::
+
+    conda env create -f requirements.yaml
